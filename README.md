@@ -1,6 +1,6 @@
-# Open Mind System
+# Open Mind
 
-Open Mind System (`open-mind`) é um plugin para OpenCode V2 que fornece contexto de um Vault do Obsidian em Markdown e ferramentas para consultar esse conteúdo. O código-fonte será disponibilizado no GitHub, mas ainda não está publicado. Não há distribuição pelo npm.
+Open Mind (`open-mind`) é um plugin para OpenCode V2 que fornece contexto de um Vault do Obsidian em Markdown e ferramentas para consultar esse conteúdo. O código-fonte será disponibilizado no GitHub, mas ainda não está publicado. Não há distribuição pelo npm.
 
 ## Arquitetura
 
