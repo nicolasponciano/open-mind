@@ -1,0 +1,27 @@
+{
+  "name": "open-mind",
+  "version": "0.0.0-local",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./open-mind.ts"
+  },
+  "files": [
+    "open-mind.ts",
+    "src/",
+    "README.md",
+    "examples/opencode-config.md",
+    "examples/vault-template/"
+  ],
+  "scripts": {
+    "test": "node --experimental-strip-types --test tests/adapters/opencode/open-mind-adapter.test.ts tests/core/open-mind-core.test.ts tests/filesystem/open-mind-files.test.ts tests/tools/open-mind-tools.test.ts",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run test && npm run typecheck"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@opencode/plugin": "2.2.7",
+    "@types/node": "24.19.2",
+    "typescript": "5.9.3"
+  }
+}

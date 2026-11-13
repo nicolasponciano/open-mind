@@ -1,0 +1,49 @@
+# Dependências e artefatos de build/teste
+node_modules/
+dist/
+build/
+coverage/
+.nyc_output/
+*.tsbuildinfo
+*.tgz
+.DS_Store
+Thumbs.db
+
+# Logs, caches e arquivos temporários
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.cache/
+.temp/
+tmp/
+temp/
+*.tmp
+*.swp
+
+# Configurações locais, segredos e estado de autenticação
+.env
+.env.*
+!.env.example
+opencode.json
+opencode.jsonc
+.opencode/
+.config/
+.state-permissions/
+auth.json
+credentials.json
+token.json
+
+# Vaults e dados locais do Obsidian
+**/vault/
+**/Vault/
+**/vaults/
+**/Vaults/
+.obsidian/
+
+# Fixtures e capturas locais de integração (podem conter caminhos/IDs de sessão)
+.integration-test/
+
+# Documentação histórica com caminhos locais ou detalhes do ambiente
+FASE-5-HANDOFF.md
+docs/plans/2026-11-12-fase-3-1-correcoes-seguranca.md
