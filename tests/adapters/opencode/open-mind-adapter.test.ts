@@ -33,7 +33,10 @@ function makeContext(
     name: string
     description: string
     input: Record<string, unknown>
-    execute: (input: unknown, context: { sessionID: string }) => Promise<{ content: string; metadata: Record<string, unknown> }>
+    execute: (
+      input: unknown,
+      context: { sessionID: string; agent?: string; messageID?: string; id?: string },
+    ) => Promise<{ content: string; metadata: Record<string, unknown> }>
   }> = []
   return {
     ctx: {
@@ -198,7 +201,12 @@ test("sem writePolicy, escrita retorna WRITES_DISABLED sem pedir permissão", as
   await assert.rejects(readFile(join(vaultPath, "nota.md")), /ENOENT/)
 })
 
-test("writePolicy best-effort autoriza antes de criar com sessão, ação e recurso exatos", async (t) => {
+function assertNoPersistenceFields(call: Record<string, unknown>) {
+  assert.equal("save" in call, false)
+  assert.equal("metadata" in call, false)
+}
+
+test("writePolicy best-effort autoriza antes de criar com sessão, ação, recurso, agente e origem exatos", async (t) => {
   const vaultPath = await makeVault(t)
   const projectDirectory = join(tmpdir(), "oms-adapter-write-project")
   const { ctx, tools, permission } = makeContext({ vaultPath, writePolicy: "best-effort" }, projectDirectory)
@@ -207,15 +215,93 @@ test("writePolicy best-effort autoriza antes de criar com sessão, ação e recu
   const create = tools.find((tool) => tool.name === "open_mind_create")
   assert.ok(create)
   const parsed = JSON.parse(
-    (await create.execute({ path: "notas/nova.md", content: "# Nova\n" }, { sessionID: "session-test" })).content,
+    (
+      await create.execute(
+        { path: "notas/nova.md", content: "# Nova\n" },
+        { sessionID: "session-test", agent: "agente-efetivo", messageID: "msg-1", id: "call-1" },
+      )
+    ).content,
   )
 
   assert.equal(parsed.ok, true)
   assert.equal(parsed.path, "notas/nova.md")
   assert.deepEqual(permission.calls, [
-    { sessionID: "session-test", action: "open_mind_create", resources: ["notas/nova.md"] },
+    {
+      sessionID: "session-test",
+      agent: "agente-efetivo",
+      action: "open_mind_create",
+      resources: ["notas/nova.md"],
+      source: { type: "tool", messageID: "msg-1", id: "call-1" },
+    },
   ])
+  assertNoPersistenceFields(permission.calls[0])
   assert.equal(await readFile(join(vaultPath, "notas", "nova.md"), "utf8"), "# Nova\n")
+})
+
+test("agente ausente, vazio ou não textual é omitido do assert sem valor substituto", async (t) => {
+  const vaultPath = await makeVault(t)
+  const projectDirectory = join(tmpdir(), "oms-adapter-agent-omit-project")
+  const { ctx, tools, permission } = makeContext({ vaultPath, writePolicy: "best-effort" }, projectDirectory)
+  await setupOpenMind(ctx as never)
+
+  const create = tools.find((tool) => tool.name === "open_mind_create")
+  assert.ok(create)
+  const contexts = [{ sessionID: "session-test" }, { sessionID: "session-test", agent: "   " }, { sessionID: "session-test", agent: 42 }]
+  for (const [index, context] of contexts.entries()) {
+    await create.execute({ path: `notas/agente-${index}.md`, content: "x" }, context as never)
+  }
+
+  assert.equal(permission.calls.length, contexts.length)
+  for (const call of permission.calls) {
+    assert.equal("agent" in call, false)
+    assert.equal("source" in call, false)
+    assert.equal(call.sessionID, "session-test")
+    assertNoPersistenceFields(call)
+  }
+})
+
+test("source é omitido quando messageID ou id da chamada está ausente", async (t) => {
+  const vaultPath = await makeVault(t)
+  const projectDirectory = join(tmpdir(), "oms-adapter-source-omit-project")
+  const { ctx, tools, permission } = makeContext({ vaultPath, writePolicy: "best-effort" }, projectDirectory)
+  await setupOpenMind(ctx as never)
+
+  const create = tools.find((tool) => tool.name === "open_mind_create")
+  assert.ok(create)
+  await create.execute({ path: "notas/sem-mensagem.md", content: "x" }, { sessionID: "session-test", id: "call-1" })
+  await create.execute({ path: "notas/sem-chamada.md", content: "x" }, { sessionID: "session-test", messageID: "msg-1" })
+
+  assert.equal(permission.calls.length, 2)
+  for (const call of permission.calls) {
+    assert.equal("source" in call, false)
+    assertNoPersistenceFields(call)
+  }
+})
+
+test("cada chamada de escrita leva a própria origem, sem misturar identificadores", async (t) => {
+  const vaultPath = await makeVault(t)
+  const projectDirectory = join(tmpdir(), "oms-adapter-source-isolation-project")
+  const { ctx, tools, permission } = makeContext({ vaultPath, writePolicy: "best-effort" }, projectDirectory)
+  await setupOpenMind(ctx as never)
+
+  const create = tools.find((tool) => tool.name === "open_mind_create")
+  assert.ok(create)
+  await create.execute(
+    { path: "notas/primeira.md", content: "x" },
+    { sessionID: "session-test", agent: "agente-a", messageID: "msg-1", id: "call-1" },
+  )
+  await create.execute(
+    { path: "notas/segunda.md", content: "y" },
+    { sessionID: "session-test", agent: "agente-b", messageID: "msg-2", id: "call-2" },
+  )
+
+  assert.deepEqual(permission.calls.map((call) => call.source), [
+    { type: "tool", messageID: "msg-1", id: "call-1" },
+    { type: "tool", messageID: "msg-2", id: "call-2" },
+  ])
+  assert.deepEqual(permission.calls.map((call) => call.agent), ["agente-a", "agente-b"])
+  assert.deepEqual(permission.calls.map((call) => (call.resources as string[])[0]), ["notas/primeira.md", "notas/segunda.md"])
+  for (const call of permission.calls) assertNoPersistenceFields(call)
 })
 
 test("update autorizado usa ação própria e preserva conteúdo em conflito de hash", async (t) => {
@@ -252,6 +338,40 @@ test("update autorizado usa ação própria e preserva conteúdo em conflito de 
   assert.equal((permission.calls[0].resources as string[] | undefined)?.[0], "nota.md")
   assert.equal(conflict.code, "HASH_MISMATCH")
   assert.equal(permission.calls.length, 1)
+  assert.equal(await readFile(join(vaultPath, "nota.md"), "utf8"), "# Revisado\n")
+})
+
+test("update com agente e origem autoriza o caminho gravado e mantém a validação de expectedHash", async (t) => {
+  const vaultPath = await makeVault(t)
+  const projectDirectory = join(tmpdir(), "oms-adapter-update-origin-project")
+  await writeFile(join(vaultPath, "nota.md"), "# Original\n")
+  const { ctx, tools, permission } = makeContext({ vaultPath, writePolicy: "best-effort" }, projectDirectory)
+  await setupOpenMind(ctx as never)
+
+  const read = tools.find((tool) => tool.name === "open_mind_read")
+  const update = tools.find((tool) => tool.name === "open_mind_update")
+  assert.ok(read && update)
+  const origin = { sessionID: "session-test", agent: "agente-efetivo", messageID: "msg-7", id: "call-7" }
+  const current = JSON.parse((await read.execute({ path: "nota.md" }, origin)).content)
+  const updated = JSON.parse(
+    (await update.execute({ path: "nota.md", content: "# Revisado\n", expectedHash: current.sha256 }, origin)).content,
+  )
+  const conflict = JSON.parse(
+    (await update.execute({ path: "nota.md", content: "# Conflito\n", expectedHash: current.sha256 }, origin)).content,
+  )
+
+  assert.equal(updated.ok, true)
+  assert.equal(conflict.code, "HASH_MISMATCH")
+  assert.deepEqual(permission.calls, [
+    {
+      sessionID: "session-test",
+      agent: "agente-efetivo",
+      action: "open_mind_update",
+      resources: ["nota.md"],
+      source: { type: "tool", messageID: "msg-7", id: "call-7" },
+    },
+  ])
+  assertNoPersistenceFields(permission.calls[0])
   assert.equal(await readFile(join(vaultPath, "nota.md"), "utf8"), "# Revisado\n")
 })
 

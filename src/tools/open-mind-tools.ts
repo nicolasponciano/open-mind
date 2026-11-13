@@ -28,7 +28,14 @@ export const MAX_SEARCH_LIMITS = {
 } as const
 
 export type JsonSchemaObject = { [key: string]: unknown }
-export type OpenMindToolContext = { sessionID: string }
+export type OpenMindToolContext = {
+  sessionID: string
+  /** Agente efetivo da chamada, repassado pelo host quando disponível. */
+  agent?: string
+  /** Identificadores da chamada de ferramenta, repassados pelo host quando disponíveis. */
+  messageID?: string
+  callID?: string
+}
 export type OpenMindToolResult = { content: string; metadata: Record<string, unknown> }
 export type OpenMindWriteAction = "open_mind_create" | "open_mind_update"
 export type OpenMindAuthorization = {
@@ -36,6 +43,10 @@ export type OpenMindAuthorization = {
   /** Caminho relativo canônico dentro do Vault. */
   path: string
   sessionID: string
+  /** Presente somente quando o host forneceu o agente efetivo. */
+  agent?: string
+  /** Presente somente quando messageID e callID estão disponíveis. */
+  source?: { messageID: string; callID: string }
 }
 export type OpenMindAuthorize = (request: OpenMindAuthorization) => Promise<void>
 
@@ -99,6 +110,10 @@ function requireMarkdownContent(input: Record<string, unknown>, name: string, ma
     throw new VaultFileError("LIMIT_EXCEEDED", `${name} excede o limite máximo de escrita em bytes UTF-8.`)
   }
   return value
+}
+
+function contextText(value: unknown) {
+  return typeof value === "string" && value.trim() ? value : undefined
 }
 
 function throwVault(code: VaultFileErrorCode, message: string): never {
@@ -172,12 +187,21 @@ export function createOpenMindTools(options: OpenMindToolsOptions): OpenMindTool
   async function authorizeWrite(
     action: OpenMindWriteAction,
     path: string,
-    sessionID: string,
+    context: OpenMindToolContext,
   ): Promise<OpenMindToolResult | undefined> {
     if (!options.authorize) {
       return fail("AUTHORIZATION_UNAVAILABLE", "autorização de escrita indisponível; nenhuma alteração foi feita.")
     }
-    await options.authorize({ action, path, sessionID })
+    const agent = contextText(context.agent)
+    const messageID = contextText(context.messageID)
+    const callID = contextText(context.callID)
+    await options.authorize({
+      action,
+      path,
+      sessionID: context.sessionID,
+      ...(agent ? { agent } : {}),
+      ...(messageID && callID ? { source: { messageID, callID } } : {}),
+    })
     return undefined
   }
 
@@ -395,7 +419,7 @@ export function createOpenMindTools(options: OpenMindToolsOptions): OpenMindTool
         return errorResult(error)
       }
 
-      const denied = await authorizeWrite("open_mind_create", path, context.sessionID)
+      const denied = await authorizeWrite("open_mind_create", path, context)
       if (denied) return denied
 
       try {
@@ -455,7 +479,7 @@ export function createOpenMindTools(options: OpenMindToolsOptions): OpenMindTool
         return errorResult(error)
       }
 
-      const denied = await authorizeWrite("open_mind_update", path, context.sessionID)
+      const denied = await authorizeWrite("open_mind_update", path, context)
       if (denied) return denied
 
       try {

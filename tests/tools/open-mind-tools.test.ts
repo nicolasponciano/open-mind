@@ -524,3 +524,82 @@ test("ferramentas de leitura continuam funcionando com escrita habilitada", asyn
   assert.match(read.content, /produtividade/)
   assert.equal(search.count, 1)
 })
+
+test("create repassa agente e origem da chamada à autorização sem alterar o caminho gravado", async (t) => {
+  const { tools, vaultPath, authorizations } = await fixture(t, { writePolicy: "best-effort" })
+  const result = parse(
+    await tools.open_mind_create.execute(
+      { path: "notas/origem.md", content: "# Origem\n" },
+      { sessionID: "session-test", agent: "agente-efetivo", messageID: "msg-1", callID: "call-1" },
+    ),
+  )
+
+  assert.equal(result.ok, true)
+  assert.deepEqual(authorizations, [
+    {
+      action: "open_mind_create",
+      path: "notas/origem.md",
+      sessionID: "session-test",
+      agent: "agente-efetivo",
+      source: { messageID: "msg-1", callID: "call-1" },
+    },
+  ])
+  assert.equal(await readFile(join(vaultPath, "notas", "origem.md"), "utf8"), "# Origem\n")
+})
+
+test("autorização omite agente e origem indisponíveis ou vazios", async (t) => {
+  const { tools, authorizations } = await fixture(t, { writePolicy: "best-effort" })
+  await tools.open_mind_create.execute(
+    { path: "notas/sem-origem.md", content: "x" },
+    { sessionID: "session-test", agent: " ", messageID: "msg-1" },
+  )
+  await tools.open_mind_create.execute(
+    { path: "notas/sem-chamada.md", content: "x" },
+    { sessionID: "session-test", agent: "agente", messageID: "", callID: "call-2" },
+  )
+
+  assert.equal(authorizations.length, 2)
+  assert.equal("agent" in authorizations[0], false)
+  assert.equal("source" in authorizations[0], false)
+  assert.equal(authorizations[1].agent, "agente")
+  assert.equal("source" in authorizations[1], false)
+  for (const request of authorizations) {
+    assert.equal("save" in request, false)
+    assert.equal("metadata" in request, false)
+  }
+})
+
+test("update repassa origem sem substituir o hash validado nem o caminho", async (t) => {
+  const { tools, vaultPath, authorizations } = await fixture(t, { writePolicy: "best-effort" })
+  const read = parse(await call(tools.open_mind_read, { path: "referencias/alfa.md" }))
+  const result = parse(
+    await tools.open_mind_update.execute(
+      { path: "referencias/alfa.md", content: "# Atualizado\n", expectedHash: read.sha256 },
+      { sessionID: "session-test", agent: "agente-efetivo", messageID: "msg-9", callID: "call-9" },
+    ),
+  )
+
+  assert.equal(result.ok, true)
+  assert.equal(authorizations.length, 1)
+  assert.equal(authorizations[0].action, "open_mind_update")
+  assert.equal(authorizations[0].path, "referencias/alfa.md")
+  assert.deepEqual(authorizations[0].source, { messageID: "msg-9", callID: "call-9" })
+  assert.equal(await readFile(join(vaultPath, "referencias", "alfa.md"), "utf8"), "# Atualizado\n")
+})
+
+test("hash divergente não chega à autorização mesmo com agente e origem presentes", async (t) => {
+  const { tools, vaultPath, authorizations } = await fixture(t, { writePolicy: "best-effort" })
+  const read = parse(await call(tools.open_mind_read, { path: "referencias/alfa.md" }))
+  await writeFile(join(vaultPath, "referencias", "alfa.md"), "# externo\n")
+
+  const result = parse(
+    await tools.open_mind_update.execute(
+      { path: "referencias/alfa.md", content: "# minha\n", expectedHash: read.sha256 },
+      { sessionID: "session-test", agent: "agente-efetivo", messageID: "msg-10", callID: "call-10" },
+    ),
+  )
+
+  assert.equal(result.code, "HASH_MISMATCH")
+  assert.equal(authorizations.length, 0)
+  assert.equal(await readFile(join(vaultPath, "referencias", "alfa.md"), "utf8"), "# externo\n")
+})

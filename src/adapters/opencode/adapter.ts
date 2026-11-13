@@ -58,12 +58,15 @@ export async function setupOpenMind(ctx: Plugin.Context) {
     vaultRoot,
     writePolicy,
     getSessionDirectory: async (sessionID) => (await ctx.session.get({ sessionID })).location.directory,
-    authorize: async ({ action, path, sessionID }) => {
+    authorize: async ({ action, path, sessionID, agent, source }) => {
+      type AssertRequest = Parameters<typeof ctx.permission.assert>[0]
       await ctx.permission.assert({
         // O host entrega o sessionID já tipado; a camada de tools o mantém como string.
-        sessionID: sessionID as Parameters<typeof ctx.permission.assert>[0]["sessionID"],
+        sessionID: sessionID as AssertRequest["sessionID"],
         action,
         resources: [path],
+        ...(agent ? { agent: agent as NonNullable<AssertRequest["agent"]> } : {}),
+        ...(source ? { source: { type: "tool" as const, messageID: source.messageID, id: source.callID } } : {}),
       })
     },
   })
@@ -76,7 +79,12 @@ export async function setupOpenMind(ctx: Plugin.Context) {
         description: tool.description,
         input: tool.input,
         async execute(input, context) {
-          const result = await tool.execute(input, { sessionID: context.sessionID })
+          const result = await tool.execute(input, {
+            sessionID: context.sessionID,
+            agent: context.agent,
+            messageID: context.messageID,
+            callID: context.id,
+          })
           return { content: result.content, metadata: result.metadata }
         },
       })
