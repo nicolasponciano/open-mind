@@ -1,6 +1,6 @@
 # Open Mind
 
-Open Mind (`open-mind`) é um plugin para OpenCode V2 que fornece contexto de um Vault do Obsidian em Markdown e ferramentas para consultar esse conteúdo. O código-fonte será disponibilizado no GitHub, mas ainda não está publicado. Não há distribuição pelo npm.
+Open Mind (`open-mind`) é um plugin para OpenCode V2 que fornece contexto de um Vault do Obsidian em Markdown e ferramentas para consultar esse conteúdo. O código-fonte está publicado em [github.com/nicolasponciano/open-mind](https://github.com/nicolasponciano/open-mind). Não há distribuição pelo npm.
 
 ## Arquitetura
 
@@ -20,7 +20,7 @@ O teste de carregamento foi feito com uma instalação local isolada do tarball 
 
 A distribuição preserva os arquivos TypeScript diretamente: o carregador do OpenCode `v2.2.5` aceitou `open-mind.ts` como entrypoint do plugin. Isso evita build, cópia de arquivos gerados e configuração de source maps. As importações internas usam extensões `.ts`, coerentes com o carregador testado.
 
-Gerar JavaScript com o `tsc` atual não é uma troca direta: o `tsconfig.json` é `noEmit` e permite importações `.ts`; a emissão exigiria uma configuração separada e uma etapa para ajustar as extensões dos imports. Um bundler seria mais uma ferramenta e uma superfície de manutenção. Portanto, TypeScript direto é a alternativa mínima; o artefato desta fase será uma validação local, não uma publicação.
+Gerar JavaScript com o `tsc` atual não é uma troca direta: o `tsconfig.json` é `noEmit` e permite importações `.ts`; a emissão exigiria uma configuração separada e uma etapa para ajustar as extensões dos imports. Um bundler seria mais uma ferramenta e uma superfície de manutenção. Portanto, TypeScript direto é a alternativa mínima. O código-fonte está no GitHub; não há publicação do pacote no npm.
 
 `@opencode/plugin` é dependência de desenvolvimento (`devDependencies`). O entrypoint `open-mind.ts` usa `import type` e `satisfies Plugin.Plugin` apenas para validação estática; essas importações são apagadas na execução, e o objeto exportado segue o formato aceito pelo loader V2. Por isso `dependencies` está vazio. `typescript` e `@types/node` também permanecem em `devDependencies`.
 
@@ -28,11 +28,13 @@ Na auditoria de 12/11/2026, em instalação isolada do tarball, `npm audit --omi
 
 ## Configuração a partir de um clone local
 
-O manifesto usa o nome local `open-mind`, mantém a identificação de desenvolvimento `0.0.0-local` e `private: true` para impedir publicação acidental no npm. Não existe pacote publicado. Depois que o código-fonte estiver disponível no GitHub, clone o repositório pela URL oficial que vier a ser divulgada e configure o caminho local do clone no OpenCode. O carregamento do pacote TypeScript foi validado por meio de um tarball local, em instalação isolada no Windows com OpenCode `v2.2.5`.
+O manifesto usa o nome local `open-mind`, mantém a identificação de desenvolvimento `0.0.0-local` e `private: true` para impedir publicação acidental no npm. Não há pacote publicado no npm. Clone o repositório público e configure o caminho local do clone no OpenCode. O carregamento do pacote TypeScript foi validado por meio de um tarball local, em instalação isolada no Windows com OpenCode `v2.2.5`.
 
-1. Obtenha o código-fonte do repositório público `open-mind` quando a URL oficial for divulgada. Não instale um pacote do npm: não há publicação no npm nem dependências externas de runtime.
+1. Clone o repositório público. Não instale um pacote do npm: não há publicação no npm nem dependências externas de runtime.
 
-   Use a URL oficial do repositório quando for divulgada; ela ainda não está definida.
+   ```sh
+   git clone https://github.com/nicolasponciano/open-mind.git
+   ```
 
 2. No `opencode.jsonc` do projeto em que deseja usar o plugin, mescle uma entrada em `plugins`. Preserve todas as outras propriedades e entradas. Aponte `package` para o diretório do clone e informe o caminho absoluto do seu próprio Vault:
 
@@ -78,7 +80,7 @@ Consulte [`examples/opencode-config.md`](examples/opencode-config.md) para exemp
 
 ### Estado da distribuição
 
-O código-fonte ainda não está publicado no GitHub e não há versão de release. Não copie configurações privadas nem use os arquivos locais de `.integration-test/`: são fixtures de desenvolvimento, estão excluídos do repositório e não constituem instruções de instalação para usuários.
+O código-fonte está publicado no GitHub; ainda não há versão de release nem pacote publicado no npm. Não copie configurações privadas nem use os arquivos locais de `.integration-test/`: são fixtures de desenvolvimento, estão excluídos do repositório e não constituem instruções de instalação para usuários.
 
 ## Ferramentas
 

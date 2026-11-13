@@ -1,6 +1,6 @@
 # Exemplo de configuração do plugin
 
-Os trechos abaixo usam a sintaxe JSONC do OpenCode `v2.2.5`, a única versão em que o carregamento foi testado. O código-fonte `open-mind` ainda não está publicado no GitHub. Após obter o clone, substitua o caminho ilustrativo de `package` pelo caminho absoluto desse diretório. Não há pacote publicado no npm.
+Os trechos abaixo usam a sintaxe JSONC do OpenCode `v2.2.5`, a única versão em que o carregamento foi testado. O código-fonte está publicado em [github.com/nicolasponciano/open-mind](https://github.com/nicolasponciano/open-mind). Clone o repositório com `git clone https://github.com/nicolasponciano/open-mind.git` e substitua o caminho ilustrativo de `package` pelo caminho absoluto do clone. Não há pacote publicado no npm.
 
 Mescle o objeto do plugin na propriedade `plugins` da sua configuração atual. Preserve as demais propriedades e entradas existentes; não substitua o arquivo inteiro. O caminho em `vaultPath` deve ser absoluto e apontar para um diretório já existente.
 
