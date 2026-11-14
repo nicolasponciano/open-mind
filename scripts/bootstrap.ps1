@@ -5,12 +5,83 @@ param(
 
   [string]$VaultPath,
 
-  [switch]$InitializeVault
+  [switch]$InitializeVault,
+
+  # Instalação opcional do curador (agente + script) fora do repositório.
+  [switch]$InstallCurator,
+
+  [string]$CuratorAgentsDirectory = (Join-Path $HOME ".config\opencode\agents"),
+
+  [string]$CuratorScriptsDirectory = (Join-Path $HOME ".agents\scripts"),
+
+  # Sobrescreve arquivo global diferente do repositório. Sem -Force, nada é alterado.
+  [switch]$Force
 )
 
 $ErrorActionPreference = "Stop"
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).ProviderPath
 $setupScript = Join-Path $PSScriptRoot "setup-vault.ps1"
+
+function Install-CuratorFiles {
+  [CmdletBinding(SupportsShouldProcess = $true)]
+  param(
+    [Parameter(Mandatory = $true)][string]$AgentsDirectory,
+    [Parameter(Mandatory = $true)][string]$ScriptsDirectory,
+    [switch]$ForceOverwrite
+  )
+
+  $scriptDestino = Join-Path $ScriptsDirectory "cerebro_curador.py"
+  $arquivos = @(
+    [pscustomobject]@{ Origem = "agents\cerebro-curador.md"; Destino = (Join-Path $AgentsDirectory "cerebro-curador.md"); Tipo = "agente" },
+    [pscustomobject]@{ Origem = "scripts\cerebro_curador.py"; Destino = $scriptDestino; Tipo = "script" }
+  )
+  $conflitos = 0
+  foreach ($arquivo in $arquivos) {
+    $origem = Join-Path $repositoryRoot $arquivo.Origem
+    if (-not (Test-Path -LiteralPath $origem -PathType Leaf)) {
+      throw "Arquivo do curador ausente no repositorio: $($arquivo.Origem)"
+    }
+    $conteudo = (Get-Content -LiteralPath $origem -Raw -Encoding UTF8) -replace "`r`n", "`n"
+    if ($arquivo.Tipo -eq "agente") {
+      $conteudo = $conteudo.Replace("__CURATOR_SCRIPT__", $scriptDestino)
+    }
+
+    $existente = $null
+    if (Test-Path -LiteralPath $arquivo.Destino -PathType Leaf) {
+      $existente = (Get-Content -LiteralPath $arquivo.Destino -Raw -Encoding UTF8) -replace "`r`n", "`n"
+      if ($existente -eq $conteudo) {
+        Write-Output "CURATOR_OK: $($arquivo.Destino) ja corresponde ao repositorio"
+        continue
+      }
+    }
+
+    if (-not $PSCmdlet.ShouldProcess($arquivo.Destino, "instalar $($arquivo.Tipo) do curador")) {
+      Write-Output "CURATOR_PLAN: $($arquivo.Destino)"
+      continue
+    }
+
+    if ($null -ne $existente -and -not $ForceOverwrite) {
+      $diferencas = @(Compare-Object -ReferenceObject ($existente -split "`n") -DifferenceObject ($conteudo -split "`n"))
+      Write-Output "CURATOR_CONFLICT: $($arquivo.Destino) difere do repositorio em $($diferencas.Count) linha(s); nada foi sobrescrito. Revise e use -Force para substituir."
+      $conflitos++
+      continue
+    }
+
+    $pastaDestino = Split-Path -Parent $arquivo.Destino
+    if (-not (Test-Path -LiteralPath $pastaDestino -PathType Container)) {
+      New-Item -ItemType Directory -Path $pastaDestino -Force | Out-Null
+    }
+    [IO.File]::WriteAllText($arquivo.Destino, $conteudo, (New-Object System.Text.UTF8Encoding($false)))
+    $acao = if ($null -eq $existente) { "instalado" } else { "atualizado" }
+    Write-Output "CURATOR_UPDATED: $($arquivo.Destino) ($acao)"
+  }
+
+  if ($conflitos -gt 0) {
+    throw "CURATOR_INCOMPLETE: $conflitos arquivo(s) preservado(s) por diferenca. Nenhuma sobrescrita silenciosa."
+  }
+  Write-Output "CURATOR_READY: agente e script do curador disponiveis; a configuracao global do OpenCode nao foi alterada."
+}
+
 
 foreach ($requiredPath in @("package.json", "open-mind.ts", "src")) {
   if (-not (Test-Path -LiteralPath (Join-Path $repositoryRoot $requiredPath))) {
@@ -39,6 +110,18 @@ if ($InitializeVault -and $Mode -ne "Install") {
 }
 if ($InitializeVault -and -not $VaultPath) {
   throw "-InitializeVault exige -VaultPath absoluto para uma raiz existente."
+}
+
+if ($InstallCurator -and $Mode -ne "Install") {
+  throw "-InstallCurator so pode ser usado com -Mode Install."
+}
+
+if ($InstallCurator) {
+  if (-not $CuratorAgentsDirectory -or -not $CuratorScriptsDirectory) {
+    throw "-InstallCurator exige diretorios de destino para agente e script."
+  }
+  Install-CuratorFiles -AgentsDirectory $CuratorAgentsDirectory `
+    -ScriptsDirectory $CuratorScriptsDirectory -ForceOverwrite:$Force.IsPresent
 }
 
 if ($Mode -eq "Update") {

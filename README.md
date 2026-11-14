@@ -30,6 +30,8 @@ Na auditoria de 12/11/2026, em instalação isolada do tarball, `npm audit --omi
 
 Para reconstruir e validar o ambiente após uma formatação, consulte [`docs/bootstrap.md`](docs/bootstrap.md). O bootstrap não recupera dados do vault nem altera a configuração global do OpenCode.
 
+O curador de conhecimento é opcional e instalado à parte: [`docs/curator.md`](docs/curator.md). A escrita dele acontece por script Python, fora das ferramentas `open_mind_*` e da política `writePolicy`.
+
 O manifesto usa o nome local `open-mind`, mantém a identificação de desenvolvimento `0.0.0-local` e `private: true` para impedir publicação acidental no npm. Não há pacote publicado no npm. Clone o repositório público e configure o caminho local do clone no OpenCode. O carregamento do pacote TypeScript foi validado por meio de um tarball local, em instalação isolada no Windows com OpenCode `v2.2.5`.
 
 1. Clone o repositório público. Não instale um pacote do npm: não há publicação no npm nem dependências externas de runtime.

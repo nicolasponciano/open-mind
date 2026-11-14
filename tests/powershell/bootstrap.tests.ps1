@@ -179,6 +179,48 @@ try {
   $update = Invoke-Script -Path $bootstrap -Arguments @{ Mode = "Update" }
   Assert-True ($update -match "UPDATE_PLAN") "Update deve ser somente planejamento"
 
+  # --- Curador: instalacao opcional ---
+  $curatorAgents = Join-Path $tempRoot "curator\agents"
+  $curatorScripts = Join-Path $tempRoot "curator\scripts"
+
+  $curatorWrongMode = Invoke-ScriptExpectFailure -Path $bootstrap -Arguments @{ Mode = "Validate"; InstallCurator = $true; CuratorAgentsDirectory = $curatorAgents; CuratorScriptsDirectory = $curatorScripts }
+  Assert-True $curatorWrongMode.Failed "-InstallCurator deveria exigir -Mode Install"
+
+  $curatorWhatIf = Invoke-Script -Path $bootstrap -Arguments @{ Mode = "Install"; InstallCurator = $true; CuratorAgentsDirectory = $curatorAgents; CuratorScriptsDirectory = $curatorScripts; WhatIf = $true }
+  Assert-True ($curatorWhatIf -match "CURATOR_PLAN") "-WhatIf nao mostrou o plano do curador"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $curatorAgents "cerebro-curador.md"))) "-WhatIf instalou o agente"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $curatorScripts "cerebro_curador.py"))) "-WhatIf instalou o script"
+
+  $curatorInstall = Invoke-Script -Path $bootstrap -Arguments @{ Mode = "Install"; InstallCurator = $true; CuratorAgentsDirectory = $curatorAgents; CuratorScriptsDirectory = $curatorScripts }
+  Assert-True ($curatorInstall -match "CURATOR_READY") "Install nao concluiu a instalacao do curador"
+  $agentTarget = Join-Path $curatorAgents "cerebro-curador.md"
+  $scriptTarget = Join-Path $curatorScripts "cerebro_curador.py"
+  Assert-True (Test-Path -LiteralPath $agentTarget -PathType Leaf) "agente do curador nao foi instalado"
+  Assert-True (Test-Path -LiteralPath $scriptTarget -PathType Leaf) "script do curador nao foi instalado"
+  $agentText = Get-Content -LiteralPath $agentTarget -Raw -Encoding UTF8
+  Assert-True ($agentText -match [regex]::Escape($scriptTarget)) "agente nao aponta para o script instalado"
+  Assert-True (-not ($agentText -match "__CURATOR_SCRIPT__")) "placeholder do script nao foi resolvido"
+  Assert-True ((Get-FileHash -LiteralPath $scriptTarget -Algorithm SHA256).Hash -eq (Get-FileHash -LiteralPath (Join-Path $repositoryRoot "scripts\cerebro_curador.py") -Algorithm SHA256).Hash) "script instalado difere do repositorio"
+  $agentHash = (Get-FileHash -LiteralPath $agentTarget -Algorithm SHA256).Hash
+  $scriptHash = (Get-FileHash -LiteralPath $scriptTarget -Algorithm SHA256).Hash
+
+  $curatorRepeat = Invoke-Script -Path $bootstrap -Arguments @{ Mode = "Install"; InstallCurator = $true; CuratorAgentsDirectory = $curatorAgents; CuratorScriptsDirectory = $curatorScripts }
+  Assert-True ($curatorRepeat -match "CURATOR_OK") "reinstalacao nao reconheceu arquivos identicos"
+  Assert-True (-not ($curatorRepeat -match "CURATOR_UPDATED")) "reinstalacao regravou arquivos identicos"
+  Assert-True ((Get-FileHash -LiteralPath $agentTarget -Algorithm SHA256).Hash -eq $agentHash) "reinstalacao alterou o agente"
+  Assert-True ((Get-FileHash -LiteralPath $scriptTarget -Algorithm SHA256).Hash -eq $scriptHash) "reinstalacao alterou o script"
+
+  Set-Content -LiteralPath $agentTarget -Value "# personalizacao local" -NoNewline -Encoding UTF8
+  $customHash = (Get-FileHash -LiteralPath $agentTarget -Algorithm SHA256).Hash
+  $curatorConflict = Invoke-ScriptExpectFailure -Path $bootstrap -Arguments @{ Mode = "Install"; InstallCurator = $true; CuratorAgentsDirectory = $curatorAgents; CuratorScriptsDirectory = $curatorScripts }
+  Assert-True $curatorConflict.Failed "conflito do curador nao interrompeu a instalacao"
+  Assert-True ($curatorConflict.Output -match "CURATOR_(CONFLICT|INCOMPLETE)") "conflito do curador sem mensagem"
+  Assert-True ((Get-FileHash -LiteralPath $agentTarget -Algorithm SHA256).Hash -eq $customHash) "personalizacao local foi sobrescrita sem -Force"
+
+  $curatorForced = Invoke-Script -Path $bootstrap -Arguments @{ Mode = "Install"; InstallCurator = $true; CuratorAgentsDirectory = $curatorAgents; CuratorScriptsDirectory = $curatorScripts; Force = $true }
+  Assert-True ($curatorForced -match "CURATOR_UPDATED") "-Force nao atualizou o agente divergente"
+  Assert-True (-not ((Get-Content -LiteralPath $agentTarget -Raw -Encoding UTF8) -match "personalizacao local")) "conteudo antigo permaneceu apos -Force"
+
   Write-Output "PASS: testes de bootstrap/setup em fixture temporária"
 }
 finally {

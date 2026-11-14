@@ -42,6 +42,7 @@ O bootstrap reconstrói e valida a **infraestrutura**, não o conteúdo pessoal.
 - `Restore`: valida apenas um vault que já foi recuperado e prepara a reconexão. Não é mecanismo de recuperação de dados. Saídas possíveis: `RECONNECT_READY` (estrutura, `AGENTS.md` e `00 - Open Mind.md` presentes), `RECONNECT_INCOMPLETE` (arquivos-base ausentes, nada é criado), `DATA_NOT_RESTORED` (caminho inexistente ou ausente).
 - `Update`: informa que não há migrações versionadas; não aplica mudanças.
 - `-WhatIf`: simula qualquer criação de pastas; nenhuma pasta é criada.
+- `-InstallCurator` (com `-Mode Install`): instala o agente e o script do curador, de forma opcional e idempotente. Detalhes em `docs/curator.md`.
 
 O caminho do vault deve ser absoluto e totalmente qualificado; caminhos relativos a drive (`C:rel`) e caminhos relativos comuns são rejeitados antes de qualquer operação. O diretório precisa existir. O bootstrap não cria a raiz escolhida. Estruturas não canônicas são diagnosticadas; o sistema não cria uma árvore paralela nem move arquivos automaticamente.
 
@@ -63,6 +64,17 @@ Depois de revisar o plano, execute explicitamente:
 
 O bootstrap delega a única lista de pastas versionada a `scripts/setup-vault.ps1`. Esse script cria somente diretórios ausentes. Não cria/edita `AGENTS.md`, mapas ou notas. A cópia histórica `setup-vault.ps1` dentro do vault existente não é substituída por estes comandos.
 
+## Instalar o curador (opcional)
+
+O curador não faz parte da instalação padrão. Para disponibilizá-lo no OpenCode:
+
+```powershell
+.\scripts\bootstrap.ps1 -Mode Install -InstallCurator -WhatIf
+.\scripts\bootstrap.ps1 -Mode Install -InstallCurator
+```
+
+Destinos padrão: `%USERPROFILE%\.config\opencode\agents\cerebro-curador.md` e `%USERPROFILE%\.agents\scripts\cerebro_curador.py`. O bootstrap resolve o caminho do script dentro do agente, compara o conteúdo antes de gravar e não sobrescreve arquivo divergente sem `-Force`. Ele não altera `opencode.jsonc`, o vault ou o `AGENTS.md`. O repositório é a versão canônica: edite aqui e reinstale. Ver `docs/curator.md`.
+
 ## Testes isolados
 
 Os testes PowerShell usam fixtures temporárias e não acessam o vault pessoal nem a configuração global:
@@ -72,7 +84,7 @@ npm run test:powershell
 npm run check
 ```
 
-`npm run check` executa os testes Node, os testes PowerShell e o typecheck. O runner `scripts/run-powershell-tests.mjs` procura `pwsh` e, depois, `powershell`; se nenhum existir, imprime `SKIP` e encerra com sucesso, para não quebrar ambientes sem PowerShell.
+`npm run check` executa os testes Node, os testes PowerShell, os testes do curador e o typecheck. O runner `scripts/run-powershell-tests.mjs` procura `pwsh` e, depois, `powershell`; se nenhum existir, imprime `SKIP` e encerra com sucesso, para não quebrar ambientes sem PowerShell.
 
 `-ExecutionPolicy Bypass` vale somente para o processo iniciado pelo runner; não altera a política da máquina. O modo de simulação recomendado para avaliar um destino é `-WhatIf`.
 
