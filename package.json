@@ -15,8 +15,9 @@
   ],
   "scripts": {
     "test": "node --experimental-strip-types --test tests/adapters/opencode/open-mind-adapter.test.ts tests/core/open-mind-core.test.ts tests/filesystem/open-mind-files.test.ts tests/tools/open-mind-tools.test.ts",
+    "test:powershell": "node scripts/run-powershell-tests.mjs",
     "typecheck": "tsc --noEmit",
-    "check": "npm run test && npm run typecheck"
+    "check": "npm run test && npm run test:powershell && npm run typecheck"
   },
   "dependencies": {},
   "devDependencies": {
