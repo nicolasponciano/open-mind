@@ -200,7 +200,9 @@ try {
   $agentText = Get-Content -LiteralPath $agentTarget -Raw -Encoding UTF8
   Assert-True ($agentText -match [regex]::Escape($scriptTarget)) "agente nao aponta para o script instalado"
   Assert-True (-not ($agentText -match "__CURATOR_SCRIPT__")) "placeholder do script nao foi resolvido"
-  Assert-True ((Get-FileHash -LiteralPath $scriptTarget -Algorithm SHA256).Hash -eq (Get-FileHash -LiteralPath (Join-Path $repositoryRoot "scripts\cerebro_curador.py") -Algorithm SHA256).Hash) "script instalado difere do repositorio"
+  $scriptInstalado = (Get-Content -LiteralPath $scriptTarget -Raw -Encoding UTF8) -replace "`r`n", "`n"
+  $scriptRepositorio = (Get-Content -LiteralPath (Join-Path $repositoryRoot "scripts\cerebro_curador.py") -Raw -Encoding UTF8) -replace "`r`n", "`n"
+  Assert-True ($scriptInstalado -eq $scriptRepositorio) "script instalado difere do repositorio"
   $agentHash = (Get-FileHash -LiteralPath $agentTarget -Algorithm SHA256).Hash
   $scriptHash = (Get-FileHash -LiteralPath $scriptTarget -Algorithm SHA256).Hash
 
