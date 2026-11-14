@@ -1,6 +1,24 @@
+**Português** · [English](README.en.md)
+
 # Open Mind
 
 Open Mind (`open-mind`) é um plugin para OpenCode V2 que fornece contexto de um Vault do Obsidian em Markdown e ferramentas para consultar esse conteúdo. O código-fonte está publicado em [github.com/nicolasponciano/open-mind](https://github.com/nicolasponciano/open-mind). Não há distribuição pelo npm.
+
+## Sumário
+
+- [Arquitetura](#arquitetura)
+- [Requisitos e compatibilidade testada](#requisitos-e-compatibilidade-testada)
+- [Formato de distribuição](#formato-de-distribuicao)
+- [Configuração a partir de um clone local](#configuracao-a-partir-de-um-clone-local)
+- [Vault e template](#vault-e-template)
+- [Configuração do plugin](#configuracao-do-plugin)
+- [Ferramentas](#ferramentas)
+- [Associação de projetos por sessão](#associacao-de-projetos-por-sessao)
+- [Limites padrão](#limites-padrao)
+- [Segurança da escrita](#seguranca-da-escrita)
+- [Desenvolvimento e testes](#desenvolvimento-e-testes)
+- [Notas de atualização](#notas-de-atualizacao)
+- [Limitações conhecidas](#limitacoes-conhecidas)
 
 ## Arquitetura
 
@@ -8,6 +26,7 @@ Open Mind (`open-mind`) é um plugin para OpenCode V2 que fornece contexto de um
 
 O plugin lê o Vault configurado; o Core monta contexto e associa notas de projeto; as ferramentas expõem status, busca, leitura e, quando habilitada, escrita. O acesso ao filesystem é confinado à raiz do Vault e usa caminhos relativos nas operações das ferramentas.
 
+<a id="requisitos-e-compatibilidade-testada"></a>
 ## Requisitos e compatibilidade testada
 
 - Node.js `v24.20.0` para executar os testes (`--experimental-strip-types`).
@@ -26,6 +45,7 @@ Gerar JavaScript com o `tsc` atual não é uma troca direta: o `tsconfig.json` �
 
 Na auditoria de 12/11/2026, em instalação isolada do tarball, `npm audit --omit=dev` reportou 0 vulnerabilidades. Não há `glob` nem `minimatch` instalados. Para comparação, a distribuição anterior, com `@opencode/plugin` em `dependencies`, reportava 24 vulnerabilidades moderadas transitivas (incluindo `glob` e `minimatch`). Esse resultado cobre apenas o pacote distribuído: não significa que o OpenCode inteiro esteja livre de vulnerabilidades.
 
+<a id="configuracao-a-partir-de-um-clone-local"></a>
 ## Configuração a partir de um clone local
 
 Para reconstruir e validar o ambiente após uma formatação, consulte [`docs/bootstrap.md`](docs/bootstrap.md). O bootstrap não recupera dados do vault nem altera a configuração global do OpenCode.
@@ -69,6 +89,7 @@ O Vault é um diretório existente com notas Markdown. Arquivos e pastas-base n�
 
 Use [`examples/vault-template/`](examples/vault-template/) como exemplo fictício: copie-o para um diretório de teste ou adapte sua estrutura ao seu Vault. Os wikilinks ilustram navegação no Obsidian. A nota de projeto usa `Caminho:` para associar o caminho do projeto no computador ao diretório da sessão OpenCode. Substitua o caminho ilustrativo pelo caminho absoluto que corresponda à sessão local. Não é necessário adotar as pastas `notas/` ou `projetos/` para as operações comuns de leitura e busca.
 
+<a id="configuracao-do-plugin"></a>
 ## Configuração do plugin
 
 O plugin recebe opções por `ctx.options` no setup:
@@ -97,6 +118,7 @@ O plugin registra seis ferramentas:
 
 As duas ferramentas de escrita permanecem registradas mesmo com escrita desabilitada; nesse estado, respondem `WRITES_DISABLED` e não alteram arquivos.
 
+<a id="associacao-de-projetos-por-sessao"></a>
 ## Associação de projetos por sessão
 
 Para cada sessão, o plugin consulta o diretório daquela sessão no OpenCode, não o diretório global da aplicação. A busca de correspondência examina notas Markdown em `projetos/` e compara o caminho completo do diretório da sessão com o campo `Caminho:`. A comparação normaliza separadores e considera a identidade do filesystem quando relevante; não é uma busca por substring. Uma nota correspondente é carregada como contexto.
@@ -111,6 +133,7 @@ Sem diretório de sessão, sem correspondência, com mais de uma correspondênci
 
 Os limites de busca podem ser ajustados internamente até os tetos do Core; a configuração pública do plugin nesta versão não oferece overrides para eles. A busca pode sinalizar resultados incompletos quando um limite é atingido.
 
+<a id="seguranca-da-escrita"></a>
 ## Segurança da escrita
 
 Escrita é **desabilitada por padrão**. `best-effort` é opt-in local explícito e, sozinho, não dispensa a autorização `ctx.permission.assert` exigida para cada ação, com sessão, ação e caminho relativo. Sem autorizador, a operação falha fechada.
@@ -129,6 +152,16 @@ npm run check
 
 Os testes criam Vaults fictícios em diretórios temporários e limpam as fixtures ao final. Não precisam do Vault pessoal nem da configuração global do OpenCode. `npm run check` executa testes e typecheck.
 
+<a id="notas-de-atualizacao"></a>
+## Notas de atualização
+
+O projeto ainda não tem releases versionadas. O [changelog](CHANGELOG.md) reúne as mudanças por data, em português e inglês.
+
+- **14/11/2026:** foram adicionados scripts para validar e preparar o ambiente e o Vault. Se você usa apenas o plugin, não precisa mudar nada. Para reconstruir o ambiente, siga [`docs/bootstrap.md`](docs/bootstrap.md).
+- **13/11/2026:** as ferramentas de escrita passaram a enviar mais contexto na autorização de cada operação. Não é necessário alterar a configuração.
+- **12/11/2026:** primeira publicação do código-fonte no GitHub. A instalação é feita a partir de um clone, conforme as instruções acima.
+
+<a id="limitacoes-conhecidas"></a>
 ## Limitações conhecidas
 
 - O tarball local foi instalado e carregado somente em ambiente Windows isolado; instalação por registro/npm e validação em Linux/macOS permanecem pendentes.
