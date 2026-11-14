@@ -20,6 +20,8 @@ tmp/
 temp/
 *.tmp
 *.swp
+__pycache__/
+*.pyc
 
 # Configurações locais, segredos e estado de autenticação
 .env
