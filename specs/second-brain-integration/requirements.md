@@ -4,7 +4,7 @@
 Integrar o vault Obsidian existente ao Open-mind-system e tornar a infraestrutura reconstruível a partir do repositório. O bootstrap deve funcionar mesmo sem o vault local, sem tentar reconstruir notas ou constituição. Operações reais de conexão e escrita continuam sujeitas à aprovação.
 
 ## Problema
-Hoje o setup de pastas existe somente em `C:\Obsidian\open-mind\setup-vault.ps1`, enquanto o repositório configura e executa o plugin. Após formatação, o ambiente pode ser reconstruído independentemente dos dados, mas não há uma entrada versionada que valide e conecte essas partes sem depender do vault.
+Hoje o setup de pastas existe somente no `setup-vault.ps1` do vault Obsidian existente, enquanto o repositório configura e executa o plugin. Após formatação, o ambiente pode ser reconstruído independentemente dos dados, mas não há uma entrada versionada que valide e conecte essas partes sem depender do vault.
 
 ## Funcionalidades
 
