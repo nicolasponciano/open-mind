@@ -19,5 +19,8 @@ Regras para evolução do Open-mind-system. Revisáveis quando a arquitetura mud
 - Mudança de escopo atualiza esta spec antes do código; cada tarefa só é concluída após verificação aplicável.
 
 ## Fluxo
-- Preservar mudanças existentes e trabalhar apenas na branch `feature/second-brain-integration`.
+- `main` é a branch principal e estável; o trabalho acontece em branch própria.
+- Nova funcionalidade usa `feature/<descricao-curta>`; correção usa `fix/<descricao-curta>`.
+- A branch reflete o trabalho atual; não usar nomes fixos de funcionalidades antigas.
+- Preservar mudanças locais existentes ao trocar de branch ou iniciar o trabalho.
 - Não fazer push, merge, rebase ou commit sem pedido explícito.
