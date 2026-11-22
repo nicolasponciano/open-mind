@@ -254,7 +254,9 @@ def resolver(c, vault, mapa):
         return "descartada", f"{partes[0]}/ não recebe notas novas", None, False
     if partes[0] not in PASTAS:
         return "fila", "destino incerto: pasta fora das áreas do AGENTS.md", None, False
-    if partes[0] == "projetos" and len(partes) == 2 and not pasta.lower().endswith(".md"):
+    if partes[0] == "projetos" and (len(partes) != 2 or pasta.lower().endswith(".md")):
+        return "fila", "indique o projeto pelo slug do índice de projetos", None, False
+    if partes[0] == "projetos" and len(partes) == 2:
         slug = partes[1].lower()
         if slug not in mapa or not mapa[slug] or not (vault / mapa[slug]).is_file():
             return "fila", f"projeto não cadastrado: {partes[1]}", None, False
@@ -298,6 +300,9 @@ def validar(c, projeto, escopo, vault, mapa):
     if not nome_seguro(titulo):
         return "descartada", "título inválido", None, False
 
+    projeto = projeto or c.get("projeto")
+    if projeto and normalizar(c["pasta"]) == "projetos":
+        c = dict(c, pasta=f"projetos/{projeto}")
     status, motivo, alvo, eh_arquivo = resolver(c, vault, mapa)
     if status != "ok":
         return status, motivo, None, False
@@ -506,10 +511,12 @@ def registrar_auditoria(caminho, feitos, lote_id):
 
 def revalidar_item(it, dados, vault, mapa):
     """Revalida tudo o que o item depende, imediatamente antes de gravar."""
-    status, motivo, _, _ = validar(it["c"], dados["projeto"], dados["escopo"], vault, mapa)
+    status, motivo, resolvido, arquivo = validar(it["c"], dados["projeto"], dados["escopo"], vault, mapa)
     if status != "ok":
         return motivo or f"item não é mais gravável ({status})"
     alvo = vault / it["alvo"]
+    if arquivo and resolvido.resolve() != alvo.resolve():
+        return "roteamento mudou desde a prévia"
     if it["acao"] == "criada" and alvo.is_file() and not ja_aplicado(it, vault):
         return "destino criado por outra sessão desde a prévia"
     if sha_arq(alvo) != it["antes"] and not ja_aplicado(it, vault):
@@ -739,7 +746,7 @@ def conferir_estado_fora_vault(vault, caminhos):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--modo", default="previa",
-                    choices=["previa", "simulacao", "confirmar", "rejeitar", "listar", "auditar"])
+                    choices=["previa", "simulacao", "confirmar", "rejeitar", "listar", "auditar", "revisar", "confirmar-revisao", "auditar-roteamento", "prever-roteamento", "confirmar-roteamento"])
     ap.add_argument("--entrada", default=None, help="JSON com candidatos")
     ap.add_argument("--projeto", default=None, help="slug do projeto cadastrado")
     ap.add_argument("--area", default=None, help="área do vault, ex: conhecimento/wiki")
@@ -753,6 +760,23 @@ def main():
     ap.add_argument("--log", default=LOG_PADRAO)
     ap.add_argument("--aprovados", default=APROVADOS_PADRAO)
     args = ap.parse_args()
+
+    if args.modo in ("auditar-roteamento", "prever-roteamento", "confirmar-roteamento"):
+        from curador_roteamento import auditar, run
+        vault = exigir_vault(args.vault)
+        if args.modo == "auditar-roteamento":
+            auditar(vault)
+        else:
+            conferir_estado_fora_vault(vault, [("pendentes", args.pendentes)])
+            run(args, vault, pathlib.Path(args.pendentes))
+        return
+
+    if args.modo in ("revisar", "confirmar-revisao"):
+        from curador_revisao import run
+        vault = exigir_vault(args.vault)
+        conferir_estado_fora_vault(vault, [("pendentes", args.pendentes)])
+        run(args, vault, pathlib.Path(args.pendentes))
+        return
 
     if args.projeto and args.area:
         ap.error("use --projeto ou --area, não os dois")
