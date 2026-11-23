@@ -1,4 +1,4 @@
-﻿[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = "Medium")]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = "Medium")]
 param(
   [ValidateSet("Install", "Validate", "Restore", "Update")]
   [string]$Mode = "Validate",
@@ -33,6 +33,8 @@ function Install-CuratorFiles {
   $scriptDestino = Join-Path $ScriptsDirectory "cerebro_curador.py"
   $arquivos = @(
     [pscustomobject]@{ Origem = "agents\cerebro-curador.md"; Destino = (Join-Path $AgentsDirectory "cerebro-curador.md"); Tipo = "agente" },
+    [pscustomobject]@{ Origem = "scripts\curador_roteamento.py"; Destino = (Join-Path $ScriptsDirectory "curador_roteamento.py"); Tipo = "script" },
+    [pscustomobject]@{ Origem = "scripts\curador_revisao.py"; Destino = (Join-Path $ScriptsDirectory "curador_revisao.py"); Tipo = "script" },
     [pscustomobject]@{ Origem = "scripts\cerebro_curador.py"; Destino = $scriptDestino; Tipo = "script" }
   )
   $conflitos = 0
